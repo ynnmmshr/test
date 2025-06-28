@@ -15,4 +15,14 @@
   node_bundler = "esbuild"
 
 [functions."get-stats"]
-  node_bundler = "esbuild" 
+  node_bundler = "esbuild"
+
+# Add environment variables for debugging
+[context.production.environment]
+  NODE_ENV = "production"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "development"
+
+[context.branch-deploy.environment]
+  NODE_ENV = "development" 

@@ -118,6 +118,9 @@ class ChemistryQuizApp {
                 if (response.status === 404) {
                     console.log('Functions not found - using local storage fallback');
                     this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
+                } else {
+                    console.log('Server error - using local storage fallback');
+                    this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
                 }
                 return;
             }
@@ -136,6 +139,15 @@ class ChemistryQuizApp {
                 const key = `${level}-${questionId}`;
                 this.questionStats[key] = result.data;
                 console.log('Answer recorded to server:', result.data);
+                
+                // Netlify環境ではファイル保存ができないため、ローカルストレージにも保存
+                if (!result.saved) {
+                    console.log('Server indicated file not saved - ensuring local storage backup');
+                    this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
+                }
+            } else {
+                console.log('Server returned error - using local storage fallback');
+                this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
             }
         } catch (error) {
             console.log('Failed to record answer to server - using local storage fallback:', error);
