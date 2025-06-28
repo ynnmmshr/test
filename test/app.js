@@ -32,67 +32,28 @@ class ChemistryQuizApp {
 
     // 問題の統計情報を読み込み
     async loadQuestionStats() {
+        // まずローカルストレージから読み込み
+        this.loadLocalStats();
+        
+        // サーバーからも読み込みを試行（参考用）
         try {
             const response = await fetch('/.netlify/functions/get-stats');
             
-            // レスポンスのステータスコードをチェック
-            if (!response.ok) {
-                console.log(`Server responded with status: ${response.status}`);
-                if (response.status === 404) {
-                    console.log('Functions not found - using local storage fallback');
-                    this.loadLocalStats();
-                }
-                return;
-            }
-            
-            // レスポンスが空でないかチェック
-            const responseText = await response.text();
-            if (!responseText) {
-                console.log('Empty response from server - using local storage fallback');
-                this.loadLocalStats();
-                return;
-            }
-            
-            const result = JSON.parse(responseText);
-            if (result.success && result.stats) {
-                // 現在のローカル統計を保存
-                const currentLocalStats = { ...this.questionStats };
-                
-                // サーバーから返される統計データを読み込み
-                Object.keys(result.stats).forEach(key => {
-                    this.questionStats[key] = result.stats[key];
-                });
-                
-                // ローカル統計とマージ（ローカルの方が新しい場合はローカルを優先）
-                Object.keys(currentLocalStats).forEach(key => {
-                    const localStat = currentLocalStats[key];
-                    const serverStat = this.questionStats[key];
-                    
-                    if (serverStat) {
-                        // サーバーとローカルの統計を比較し、より新しい方を採用
-                        if (localStat.totalAttempts > serverStat.totalAttempts) {
-                            this.questionStats[key] = localStat;
-                            console.log(`Using local stats for ${key}:`, localStat);
-                        } else {
-                            console.log(`Using server stats for ${key}:`, serverStat);
-                        }
-                    } else {
-                        // サーバーにない統計はローカルを保持
-                        this.questionStats[key] = localStat;
-                        console.log(`Keeping local stats for ${key}:`, localStat);
+            if (response.ok) {
+                const responseText = await response.text();
+                if (responseText) {
+                    const result = JSON.parse(responseText);
+                    if (result.success && result.stats) {
+                        console.log('Server stats loaded (for reference):', result.stats);
+                        // サーバーの統計は参考用として表示するだけで、ローカルは上書きしない
                     }
-                });
-                
-                console.log('Merged question stats:', this.questionStats);
+                }
             }
         } catch (error) {
-            console.log('Failed to load server stats - using local storage fallback:', error);
-            // エラーの詳細をログに出力
-            if (error.name === 'SyntaxError') {
-                console.log('JSON parsing error - server may not be responding correctly');
-            }
-            this.loadLocalStats();
+            console.log('Failed to load server stats (using local only):', error);
         }
+        
+        console.log('Final question stats (local):', this.questionStats);
     }
 
     // ローカルストレージから統計を読み込み
@@ -122,6 +83,29 @@ class ChemistryQuizApp {
 
     // 解答をサーバーに記録
     async recordAnswer(questionId, level, isCorrect, userAnswer) {
+        const key = `${level}-${questionId}`;
+        
+        // まずローカルで統計を更新
+        if (!this.questionStats[key]) {
+            this.questionStats[key] = {
+                questionId: parseInt(questionId),
+                level: parseInt(level),
+                totalAttempts: 0,
+                correctAnswers: 0
+            };
+        }
+        
+        // 統計を更新
+        this.questionStats[key].totalAttempts++;
+        if (isCorrect) {
+            this.questionStats[key].correctAnswers++;
+        }
+        
+        // ローカルストレージに保存
+        this.saveLocalStats();
+        console.log('Answer recorded locally:', this.questionStats[key]);
+        
+        // サーバーにも送信（ただし重複カウントは避ける）
         try {
             const response = await fetch('/.netlify/functions/record-answer', {
                 method: 'POST',
@@ -139,74 +123,26 @@ class ChemistryQuizApp {
             // レスポンスのステータスコードをチェック
             if (!response.ok) {
                 console.log(`Server responded with status: ${response.status}`);
-                if (response.status === 404) {
-                    console.log('Functions not found - using local storage fallback');
-                    this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
-                } else {
-                    console.log('Server error - using local storage fallback');
-                    this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
-                }
-                return;
+                return; // ローカルは既に更新済みなので、エラーでも何もしない
             }
             
             // レスポンスが空でないかチェック
             const responseText = await response.text();
             if (!responseText) {
-                console.log('Empty response from server - using local storage fallback');
-                this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
+                console.log('Empty response from server');
                 return;
             }
             
             const result = JSON.parse(responseText);
             if (result.success) {
-                // サーバーから返された統計を更新
-                const key = `${level}-${questionId}`;
-                this.questionStats[key] = result.data;
-                console.log('Answer recorded to server:', result.data);
-                
-                // ローカルストレージにも保存
-                this.saveLocalStats();
-                
-                // Netlify環境ではファイル保存ができないため、ローカルストレージにも保存
-                if (!result.saved) {
-                    console.log('Server indicated file not saved - ensuring local storage backup');
-                    this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
-                }
+                console.log('Answer also recorded to server:', result.data);
             } else {
-                console.log('Server returned error - using local storage fallback');
-                this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
+                console.log('Server returned error');
             }
         } catch (error) {
-            console.log('Failed to record answer to server - using local storage fallback:', error);
-            // エラーの詳細をログに出力
-            if (error.name === 'SyntaxError') {
-                console.log('JSON parsing error - server may not be responding correctly');
-            }
-            this.recordAnswerLocal(questionId, level, isCorrect, userAnswer);
+            console.log('Failed to record answer to server:', error);
+            // ローカルは既に更新済みなので、エラーでも何もしない
         }
-    }
-
-    // ローカルストレージに解答を記録
-    recordAnswerLocal(questionId, level, isCorrect, userAnswer) {
-        const key = `${level}-${questionId}`;
-        
-        if (!this.questionStats[key]) {
-            this.questionStats[key] = {
-                questionId: parseInt(questionId),
-                level: parseInt(level),
-                totalAttempts: 0,
-                correctAnswers: 0
-            };
-        }
-        
-        this.questionStats[key].totalAttempts++;
-        if (isCorrect) {
-            this.questionStats[key].correctAnswers++;
-        }
-        
-        // ローカルストレージに保存
-        this.saveLocalStats();
-        console.log('Answer recorded to local storage:', this.questionStats[key]);
     }
 
     // 問題の正答率を取得
@@ -461,11 +397,8 @@ class ChemistryQuizApp {
         const isCorrect = this.selectedOption === q.correct;
         if (isCorrect) this.correctCount++;
         
-        // サーバーに解答を記録（ローカルストレージも含む）
+        // 解答を記録（ローカルストレージとサーバー）
         await this.recordAnswer(q.id, this.currentLevel, isCorrect, this.selectedOption);
-        
-        // 統計データを再読み込みして画面に反映
-        await this.loadQuestionStats();
         
         // 現在の問題の正答率表示を更新
         const accuracy = this.getQuestionAccuracy(q.id, this.currentLevel);
