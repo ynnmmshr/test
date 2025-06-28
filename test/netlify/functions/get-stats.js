@@ -5,6 +5,9 @@ const fs = require('fs').promises;
 const path = require('path');
 
 exports.handler = async (event, context) => {
+    console.log('get-stats function called');
+    console.log('HTTP Method:', event.httpMethod);
+    
     // CORS対応
     if (event.httpMethod === 'OPTIONS') {
         return {
@@ -33,6 +36,7 @@ exports.handler = async (event, context) => {
     try {
         // 統計ファイルのパス
         const statsFilePath = path.join(__dirname, '../../data/question-stats.json');
+        console.log('Stats file path:', statsFilePath);
         
         // 統計データを読み込み
         let stats = {};
@@ -40,9 +44,11 @@ exports.handler = async (event, context) => {
             const statsData = await fs.readFile(statsFilePath, 'utf8');
             stats = JSON.parse(statsData);
             console.log('Stats loaded from file:', Object.keys(stats).length, 'questions');
+            console.log('Stats data:', stats);
         } catch (error) {
             // ファイルが存在しない場合は空のオブジェクトを返す
             console.log('Stats file not found, returning empty stats');
+            console.log('Error details:', error.message);
             stats = {};
         }
         

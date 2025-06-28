@@ -425,6 +425,23 @@ class ChemistryQuizApp {
         // サーバーに解答を記録
         await this.recordAnswer(q.id, this.currentLevel, isCorrect, this.selectedOption);
         
+        // 統計データを再読み込みして画面に反映
+        await this.loadQuestionStats();
+        
+        // 現在の問題の正答率表示を更新
+        const accuracy = this.getQuestionAccuracy(q.id, this.currentLevel);
+        const accuracyElement = document.getElementById('question-accuracy');
+        
+        if (accuracy !== null) {
+            const key = `${this.currentLevel}-${q.id}`;
+            const stats = this.questionStats[key];
+            const totalAttempts = stats ? stats.totalAttempts : 0;
+            const correctAnswers = stats ? stats.correctAnswers : 0;
+            
+            accuracyElement.style.display = 'block';
+            accuracyElement.innerHTML = `全参加者統計: <span id="accuracy-percentage">${accuracy}</span>% (正解: ${correctAnswers}回 / 挑戦: ${totalAttempts}回)`;
+        }
+        
         // 選択肢の表示を更新（正解・不正解を表示）
         document.querySelectorAll('.option-btn').forEach((btn, i) => {
             if (i === q.correct) {
