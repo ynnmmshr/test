@@ -55,11 +55,35 @@ class ChemistryQuizApp {
             
             const result = JSON.parse(responseText);
             if (result.success && result.stats) {
-                // サーバーから返される統計データの構造に合わせて修正
+                // 現在のローカル統計を保存
+                const currentLocalStats = { ...this.questionStats };
+                
+                // サーバーから返される統計データを読み込み
                 Object.keys(result.stats).forEach(key => {
                     this.questionStats[key] = result.stats[key];
                 });
-                console.log('Server question stats loaded:', this.questionStats);
+                
+                // ローカル統計とマージ（ローカルの方が新しい場合はローカルを優先）
+                Object.keys(currentLocalStats).forEach(key => {
+                    const localStat = currentLocalStats[key];
+                    const serverStat = this.questionStats[key];
+                    
+                    if (serverStat) {
+                        // サーバーとローカルの統計を比較し、より新しい方を採用
+                        if (localStat.totalAttempts > serverStat.totalAttempts) {
+                            this.questionStats[key] = localStat;
+                            console.log(`Using local stats for ${key}:`, localStat);
+                        } else {
+                            console.log(`Using server stats for ${key}:`, serverStat);
+                        }
+                    } else {
+                        // サーバーにない統計はローカルを保持
+                        this.questionStats[key] = localStat;
+                        console.log(`Keeping local stats for ${key}:`, localStat);
+                    }
+                });
+                
+                console.log('Merged question stats:', this.questionStats);
             }
         } catch (error) {
             console.log('Failed to load server stats - using local storage fallback:', error);
@@ -139,6 +163,9 @@ class ChemistryQuizApp {
                 const key = `${level}-${questionId}`;
                 this.questionStats[key] = result.data;
                 console.log('Answer recorded to server:', result.data);
+                
+                // ローカルストレージにも保存
+                this.saveLocalStats();
                 
                 // Netlify環境ではファイル保存ができないため、ローカルストレージにも保存
                 if (!result.saved) {
@@ -434,7 +461,7 @@ class ChemistryQuizApp {
         const isCorrect = this.selectedOption === q.correct;
         if (isCorrect) this.correctCount++;
         
-        // サーバーに解答を記録
+        // サーバーに解答を記録（ローカルストレージも含む）
         await this.recordAnswer(q.id, this.currentLevel, isCorrect, this.selectedOption);
         
         // 統計データを再読み込みして画面に反映
@@ -452,6 +479,15 @@ class ChemistryQuizApp {
             
             accuracyElement.style.display = 'block';
             accuracyElement.innerHTML = `全参加者統計: <span id="accuracy-percentage">${accuracy}</span>% (正解: ${correctAnswers}回 / 挑戦: ${totalAttempts}回)`;
+            
+            console.log('Updated accuracy display:', {
+                questionId: q.id,
+                level: this.currentLevel,
+                accuracy: accuracy,
+                totalAttempts: totalAttempts,
+                correctAnswers: correctAnswers,
+                questionStats: this.questionStats[key]
+            });
         }
         
         // 選択肢の表示を更新（正解・不正解を表示）
