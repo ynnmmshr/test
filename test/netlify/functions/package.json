@@ -1,0 +1,10 @@
+{
+  "name": "chemistry-quiz-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for Chemistry Quiz App",
+  "main": "index.js",
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 

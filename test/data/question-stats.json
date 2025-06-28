@@ -1,0 +1,32 @@
+{
+  "1-6": {
+    "questionId": 6,
+    "level": 1,
+    "totalAttempts": 1,
+    "correctAnswers": 1
+  },
+  "1-7": {
+    "questionId": 7,
+    "level": 1,
+    "totalAttempts": 1,
+    "correctAnswers": 1
+  },
+  "1-8": {
+    "questionId": 8,
+    "level": 1,
+    "totalAttempts": 1,
+    "correctAnswers": 1
+  },
+  "1-9": {
+    "questionId": 9,
+    "level": 1,
+    "totalAttempts": 1,
+    "correctAnswers": 1
+  },
+  "1-10": {
+    "questionId": 10,
+    "level": 1,
+    "totalAttempts": 1,
+    "correctAnswers": 1
+  }
+}

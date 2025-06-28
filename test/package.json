@@ -1,0 +1,24 @@
+{
+  "name": "chemistry-quiz-app",
+  "version": "1.0.0",
+  "description": "高校化学理論化学問題集Webアプリケーション",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'"
+  },
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "keywords": [
+    "chemistry",
+    "quiz",
+    "education",
+    "japanese"
+  ],
+  "author": "Chemistry Quiz App",
+  "license": "MIT"
+} 
