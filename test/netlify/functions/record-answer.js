@@ -1,6 +1,9 @@
 // Netlify Function: record-answer
 // This function records user answers
 
+const fs = require('fs').promises;
+const path = require('path');
+
 exports.handler = async (event, context) => {
     // CORS対応
     if (event.httpMethod === 'OPTIONS') {
@@ -30,16 +33,41 @@ exports.handler = async (event, context) => {
     try {
         const { questionId, level, isCorrect, userAnswer } = JSON.parse(event.body);
         
-        // 本番環境では統計を記録せず、成功レスポンスのみ返す
-        // 実際の統計はローカルストレージフォールバックで管理
+        // 統計ファイルのパス
+        const statsFilePath = path.join(__dirname, '../../data/question-stats.json');
         
+        // 既存の統計データを読み込み
+        let stats = {};
+        try {
+            const statsData = await fs.readFile(statsFilePath, 'utf8');
+            stats = JSON.parse(statsData);
+        } catch (error) {
+            // ファイルが存在しない場合は空のオブジェクトから開始
+            console.log('Stats file not found, creating new one');
+        }
+        
+        // 問題のキー
         const questionKey = `${level}-${questionId}`;
-        const mockStats = {
-            questionId: parseInt(questionId),
-            level: parseInt(level),
-            totalAttempts: 1,
-            correctAnswers: isCorrect ? 1 : 0
-        };
+        
+        // 統計データを更新
+        if (!stats[questionKey]) {
+            stats[questionKey] = {
+                questionId: parseInt(questionId),
+                level: parseInt(level),
+                totalAttempts: 0,
+                correctAnswers: 0
+            };
+        }
+        
+        stats[questionKey].totalAttempts++;
+        if (isCorrect) {
+            stats[questionKey].correctAnswers++;
+        }
+        
+        // 統計データをファイルに保存
+        await fs.writeFile(statsFilePath, JSON.stringify(stats, null, 2), 'utf8');
+        
+        console.log(`Answer recorded for question ${questionKey}:`, stats[questionKey]);
 
         return {
             statusCode: 200,
@@ -50,8 +78,8 @@ exports.handler = async (event, context) => {
             },
             body: JSON.stringify({ 
                 success: true,
-                data: mockStats,
-                saved: false
+                data: stats[questionKey],
+                saved: true
             })
         };
 
