@@ -458,6 +458,10 @@ class ChemistryQuizApp {
         document.getElementById('current-question').textContent = blockQuestionNumber;
         document.getElementById('question-text').textContent = q.question;
         
+        // 選択肢をランダム化
+        const shuffledOptions = this.shuffleOptions(q.options, q.correct);
+        this.currentShuffledOptions = shuffledOptions;
+        
         // サーバーから最新の統計データを取得（問題表示時の統計）
         try {
             const response = await fetch('/.netlify/functions/get-stats');
@@ -521,10 +525,10 @@ class ChemistryQuizApp {
         
         const optionsContainer = document.getElementById('options-container');
         optionsContainer.innerHTML = '';
-        q.options.forEach((opt, idx) => {
+        shuffledOptions.forEach((opt, idx) => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
-            btn.textContent = `${idx + 1}. ${opt}`;
+            btn.textContent = `${idx + 1}. ${opt.text}`;
             btn.onclick = () => this.selectOption(idx);
             optionsContainer.appendChild(btn);
         });
@@ -550,7 +554,10 @@ class ChemistryQuizApp {
         }
         
         const q = this.questions[this.currentIndex];
-        const isCorrect = this.selectedOption === q.correct;
+        // ランダム化後の正解インデックスを取得
+        const shuffledOptions = this.currentShuffledOptions;
+        const correctIndex = shuffledOptions.findIndex(opt => opt.isCorrect);
+        const isCorrect = this.selectedOption === correctIndex;
         if (isCorrect) this.correctCount++;
         
         // 解答を記録（ローカルストレージとサーバー）
@@ -581,15 +588,15 @@ class ChemistryQuizApp {
         
         // 選択肢の表示を更新（正解・不正解を表示）
         document.querySelectorAll('.option-btn').forEach((btn, i) => {
-            if (i === q.correct) {
+            if (i === correctIndex) {
                 btn.classList.add('correct');
             } else if (i === this.selectedOption && !isCorrect) {
                 btn.classList.add('incorrect');
             }
         });
         
-        const correctAnswerText = `${q.correct + 1}. ${q.options[q.correct]}`;
-        const userAnswerText = `${this.selectedOption + 1}. ${q.options[this.selectedOption]}`;
+        const correctAnswerText = `${correctIndex + 1}. ${shuffledOptions[correctIndex].text}`;
+        const userAnswerText = `${this.selectedOption + 1}. ${shuffledOptions[this.selectedOption].text}`;
         
         let resultText = '';
         if (isCorrect) {
@@ -814,6 +821,17 @@ class ChemistryQuizApp {
         localStorage.removeItem('chemistryQuizProgress');
         console.log('Local storage cleared for debugging');
         alert('ローカルストレージをクリアしました。ページを再読み込みしてください。');
+    }
+
+    // 選択肢をランダム化する関数
+    shuffleOptions(options, correctIndex) {
+        // options: 配列, correctIndex: 正解のインデックス
+        const arr = options.map((text, idx) => ({ text, isCorrect: idx === correctIndex }));
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
     }
 }
 
