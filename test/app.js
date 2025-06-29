@@ -4,6 +4,10 @@ import { level3Questions } from './questions_level3.js';
 
 class ChemistryQuizApp {
     constructor() {
+        // ローカルストレージの統計データをクリア（サーバーデータのみ使用）
+        localStorage.removeItem('chemistry-quiz-stats');
+        console.log('Cleared localStorage stats data - using server data only');
+        
         this.currentLevel = 1;
         this.currentBlock = 0;
         this.questions = [];
@@ -15,6 +19,7 @@ class ChemistryQuizApp {
         this.bindEvents();
         this.loadLocalProgress();
         this.loadQuestionStats();
+        this.showLevelSelection();
     }
 
     // ローカルストレージから進捗を読み込み
@@ -33,7 +38,7 @@ class ChemistryQuizApp {
 
     // 問題の統計情報を読み込み
     async loadQuestionStats() {
-        // サーバーから統計データを読み込み（優先）
+        // サーバーから統計データを読み込み（強制的にサーバーデータのみ使用）
         try {
             const response = await fetch('/.netlify/functions/get-stats');
             
@@ -43,21 +48,22 @@ class ChemistryQuizApp {
                     const result = JSON.parse(responseText);
                     if (result.success && result.stats) {
                         console.log('Server stats loaded (primary):', result.stats);
-                        // サーバーの統計データを優先して使用
+                        // サーバーの統計データを強制的に使用
                         this.questionStats = result.stats;
                         this.serverStatsLoaded = true;
-                        return; // サーバーデータが取得できた場合はローカルデータは使用しない
+                        console.log('Using server stats only, ignoring local storage');
+                        return;
                     }
                 }
             }
         } catch (error) {
-            console.log('Failed to load server stats, falling back to local:', error);
+            console.log('Failed to load server stats:', error);
         }
         
-        // サーバーから取得できない場合はローカルストレージから読み込み
-        this.loadLocalStats();
+        // サーバーから取得できない場合のみ空のオブジェクトを使用
+        this.questionStats = {};
         this.serverStatsLoaded = false;
-        console.log('Using local stats as fallback:', this.questionStats);
+        console.log('No server stats available, using empty stats object');
     }
 
     // ローカルストレージから統計を読み込み
@@ -89,7 +95,7 @@ class ChemistryQuizApp {
     async recordAnswer(questionId, level, isCorrect, userAnswer) {
         const key = `${level}-${questionId}`;
         
-        // サーバーに送信（優先）
+        // サーバーに送信（サーバーデータのみ使用）
         try {
             const response = await fetch('/.netlify/functions/record-answer', {
                 method: 'POST',
@@ -107,8 +113,7 @@ class ChemistryQuizApp {
             // レスポンスのステータスコードをチェック
             if (!response.ok) {
                 console.log(`Server responded with status: ${response.status}`);
-                // サーバーエラーの場合はローカルにフォールバック
-                this.updateLocalStats(key, questionId, level, isCorrect);
+                console.log('Server error - not updating local stats');
                 return;
             }
             
@@ -116,58 +121,46 @@ class ChemistryQuizApp {
             const responseText = await response.text();
             if (!responseText) {
                 console.log('Empty response from server');
-                // サーバーエラーの場合はローカルにフォールバック
-                this.updateLocalStats(key, questionId, level, isCorrect);
+                console.log('Server error - not updating local stats');
                 return;
             }
             
             const result = JSON.parse(responseText);
             if (result.success) {
                 console.log('Answer recorded to server:', result.data);
-                // サーバーから返された最新の統計データでローカルを更新
+                // サーバーから返された最新の統計データでローカルを更新（表示用のみ）
                 this.questionStats[key] = result.data;
-                this.saveLocalStats();
+                // ローカルストレージには保存しない（サーバーデータのみ使用）
+                console.log('Updated local display with server data, not saving to localStorage');
             } else {
                 console.log('Server returned error');
-                // サーバーエラーの場合はローカルにフォールバック
-                this.updateLocalStats(key, questionId, level, isCorrect);
+                console.log('Server error - not updating local stats');
             }
         } catch (error) {
             console.log('Failed to record answer to server:', error);
-            // サーバーエラーの場合はローカルにフォールバック
-            this.updateLocalStats(key, questionId, level, isCorrect);
+            console.log('Server error - not updating local stats');
         }
-    }
-
-    // ローカル統計を更新（フォールバック用）
-    updateLocalStats(key, questionId, level, isCorrect) {
-        if (!this.questionStats[key]) {
-            this.questionStats[key] = {
-                questionId: parseInt(questionId),
-                level: parseInt(level),
-                totalAttempts: 0,
-                correctAnswers: 0
-            };
-        }
-        
-        // 統計を更新
-        this.questionStats[key].totalAttempts++;
-        if (isCorrect) {
-            this.questionStats[key].correctAnswers++;
-        }
-        
-        // ローカルストレージに保存
-        this.saveLocalStats();
-        console.log('Answer recorded locally (fallback):', this.questionStats[key]);
     }
 
     // 問題の正答率を取得
     getQuestionAccuracy(questionId, level) {
         const key = `${level}-${questionId}`;
         const stat = this.questionStats[key];
+        
+        console.log('getQuestionAccuracy debug:', {
+            questionId,
+            level,
+            key,
+            stat,
+            questionStats: this.questionStats
+        });
+        
         if (stat && stat.totalAttempts > 0) {
-            return Math.round((stat.correctAnswers / stat.totalAttempts) * 100);
+            const accuracy = Math.round((stat.correctAnswers / stat.totalAttempts) * 100);
+            console.log(`Accuracy for ${key}: ${accuracy}% (${stat.correctAnswers}/${stat.totalAttempts})`);
+            return accuracy;
         }
+        console.log(`No stats found for ${key}`);
         return null;
     }
 
@@ -347,7 +340,7 @@ class ChemistryQuizApp {
         }
     }
 
-    startBlock(blockIndex) {
+    async startBlock(blockIndex) {
         this.currentBlock = blockIndex;
         this.currentIndex = blockIndex * 10;
         this.correctCount = 0;
@@ -362,7 +355,7 @@ class ChemistryQuizApp {
         const endIndex = Math.min((blockIndex + 1) * 10, this.questions.length);
         document.getElementById('total-questions').textContent = endIndex - this.currentIndex;
         
-        this.showQuestion();
+        await this.showQuestion();
     }
 
     showLevelSelection() {
@@ -371,12 +364,29 @@ class ChemistryQuizApp {
         document.getElementById('level-selection').style.display = '';
     }
 
-    showQuestion() {
+    async showQuestion() {
         const q = this.questions[this.currentIndex];
         const blockQuestionNumber = (this.currentIndex % 10) + 1;
         document.getElementById('question-number').textContent = blockQuestionNumber;
         document.getElementById('current-question').textContent = blockQuestionNumber;
         document.getElementById('question-text').textContent = q.question;
+        
+        // サーバーから最新の統計データを取得
+        try {
+            const response = await fetch('/.netlify/functions/get-stats');
+            if (response.ok) {
+                const responseText = await response.text();
+                if (responseText) {
+                    const result = JSON.parse(responseText);
+                    if (result.success && result.stats) {
+                        this.questionStats = result.stats;
+                        console.log('Updated stats from server for question display:', result.stats);
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('Failed to get latest stats for question display:', error);
+        }
         
         // 正答率を表示（全参加者統計）
         const accuracy = this.getQuestionAccuracy(q.id, this.currentLevel);
@@ -525,7 +535,7 @@ class ChemistryQuizApp {
         document.getElementById('accuracy').textContent = Math.round(this.correctCount / blockQuestionNumber * 100) + '%';
     }
 
-    nextQuestion() {
+    async nextQuestion() {
         this.currentIndex++;
         const blockQuestionNumber = (this.currentIndex % 10) + 1;
         
@@ -541,11 +551,11 @@ class ChemistryQuizApp {
             this.showBlockSelection(this.currentLevel);
         } else {
             console.log('Showing next question');
-            this.showQuestion();
+            await this.showQuestion();
         }
     }
 
-    retryQuestion() {
+    async retryQuestion() {
         // 10問目の場合はブロック選択画面に戻る
         const blockQuestionNumber = (this.currentIndex % 10) + 1;
         if (blockQuestionNumber >= 10) {
@@ -555,7 +565,7 @@ class ChemistryQuizApp {
             this.currentIndex = this.currentBlock * 10;
             this.correctCount = 0;
             this.selectedOption = null;
-            this.showQuestion();
+            await this.showQuestion();
         }
     }
 
@@ -689,14 +699,42 @@ class ChemistryQuizApp {
             this.questionStats = {};
             this.localProgress = { level1: {}, level2: {}, level3: {} };
             
-            // 統計画面を再表示
+            console.log('Local storage and memory cleared');
+            
+            // 統計画面を再表示（サーバーから最新データを取得）
             this.showStats();
             
-            alert('統計データをリセットしました。');
+            alert('統計データをリセットしました。サーバーから最新のデータを取得します。');
         }
+    }
+
+    // ローカルストレージをクリア（デバッグ用）
+    clearLocalStorage() {
+        localStorage.removeItem('chemistry-quiz-stats');
+        localStorage.removeItem('chemistryQuizProgress');
+        console.log('Local storage cleared for debugging');
+        alert('ローカルストレージをクリアしました。ページを再読み込みしてください。');
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     window.quizApp = new ChemistryQuizApp();
+    
+    // デバッグ用のグローバル関数を追加
+    window.debugStats = () => {
+        console.log('=== DEBUG STATS ===');
+        console.log('Current questionStats:', window.quizApp.questionStats);
+        console.log('LocalStorage chemistry-quiz-stats:', localStorage.getItem('chemistry-quiz-stats'));
+        console.log('Server stats loaded flag:', window.quizApp.serverStatsLoaded);
+    };
+    
+    window.clearAllStats = () => {
+        localStorage.removeItem('chemistry-quiz-stats');
+        localStorage.removeItem('chemistryQuizProgress');
+        console.log('All stats cleared');
+        alert('すべての統計データをクリアしました。ページを再読み込みしてください。');
+    };
+    
+    console.log('Chemistry Quiz App initialized with server-only stats');
+    console.log('Debug commands: debugStats(), clearAllStats()');
 });
