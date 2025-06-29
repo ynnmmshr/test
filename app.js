@@ -478,28 +478,39 @@ class ChemistryQuizApp {
         }
         
         // 正答率を表示（解答前の全参加者統計）
-        const accuracy = this.getQuestionAccuracy(q.id, this.currentLevel);
-        const accuracyElement = document.getElementById('question-accuracy');
-        const accuracyPercentageElement = document.getElementById('accuracy-percentage');
+        const key = `${this.currentLevel}-${q.id}`;
+        const stats = this.questionStats[key];
         
         console.log('Question accuracy debug (before answer):', {
             questionId: q.id,
             level: this.currentLevel,
-            accuracy: accuracy,
+            key: key,
+            stats: stats,
             questionStats: this.questionStats
         });
         
-        if (accuracy !== null) {
-            const key = `${this.currentLevel}-${q.id}`;
-            const stats = this.questionStats[key];
-            const totalAttempts = stats ? stats.totalAttempts : 0;
-            const correctAnswers = stats ? stats.correctAnswers : 0;
+        const accuracyElement = document.getElementById('question-accuracy');
+        
+        if (stats) {
+            const totalAttempts = stats.totalAttempts || 0;
+            const correctAnswers = stats.correctAnswers || 0;
             
-            accuracyPercentageElement.textContent = accuracy;
-            accuracyElement.style.display = 'block';
-            accuracyElement.innerHTML = `全参加者統計（解答前）: <span id="accuracy-percentage">${accuracy}</span>% (正解: ${correctAnswers}回 / 挑戦: ${totalAttempts}回)`;
+            if (totalAttempts > 0) {
+                const accuracy = Math.round((correctAnswers / totalAttempts) * 100);
+                accuracyElement.style.display = 'block';
+                accuracyElement.innerHTML = `全参加者統計（解答前）: <span id="accuracy-percentage">${accuracy}</span>% (正解: ${correctAnswers}回 / 挑戦: ${totalAttempts}回)`;
+                console.log(`Accuracy for ${key}: ${accuracy}% (${correctAnswers}/${totalAttempts})`);
+            } else {
+                // 統計データは存在するが、まだ挑戦回数が0の場合
+                accuracyElement.style.display = 'block';
+                accuracyElement.innerHTML = `全参加者統計（解答前）: 未挑戦 (正解: 0回 / 挑戦: 0回)`;
+                console.log(`No attempts yet for ${key}`);
+            }
         } else {
-            accuracyElement.style.display = 'none';
+            // 統計データが存在しない場合
+            accuracyElement.style.display = 'block';
+            accuracyElement.innerHTML = `全参加者統計（解答前）: 未挑戦 (正解: 0回 / 挑戦: 0回)`;
+            console.log(`No stats found for ${key}`);
         }
         
         // 進捗バーを更新
