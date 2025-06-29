@@ -122,7 +122,7 @@ async function getStats(questionKey = null) {
             return getMockStats(questionKey);
         }
         
-        const db = await getConnection();
+        const { db } = await getConnection();
         const collection = db.collection('question_stats');
         
         if (questionKey) {
@@ -152,7 +152,7 @@ async function updateStats(questionKey, statsData) {
             return updateMockStats(questionKey, statsData);
         }
         
-        const db = await getConnection();
+        const { db } = await getConnection();
         const collection = db.collection('question_stats');
         
         console.log(`Updating stats for ${questionKey}:`, statsData);
@@ -183,7 +183,7 @@ async function getAllStats() {
             return getMockStats();
         }
         
-        const db = await getConnection();
+        const { db } = await getConnection();
         const collection = db.collection('question_stats');
         
         const results = await collection.find({}).toArray();
