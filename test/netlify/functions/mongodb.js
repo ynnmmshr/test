@@ -210,19 +210,24 @@ const mockStats = {
         questionKey: "1-1",
         questionId: 1,
         level: 1,
-        totalAttempts: 0,
-        correctAnswers: 0,
+        totalAttempts: 2,
+        correctAnswers: 1,
         lastUpdated: new Date(),
-        userAnswers: []
+        userAnswers: [
+            { answer: "H2O", isCorrect: true, timestamp: new Date() },
+            { answer: "CO2", isCorrect: false, timestamp: new Date() }
+        ]
     },
     "1-2": {
         questionKey: "1-2",
         questionId: 2,
         level: 1,
-        totalAttempts: 0,
-        correctAnswers: 0,
+        totalAttempts: 1,
+        correctAnswers: 1,
         lastUpdated: new Date(),
-        userAnswers: []
+        userAnswers: [
+            { answer: "NaCl", isCorrect: true, timestamp: new Date() }
+        ]
     }
 };
 
