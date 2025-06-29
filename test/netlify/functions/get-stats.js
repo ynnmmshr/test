@@ -1,8 +1,7 @@
 // Netlify Function: get-stats
-// This function retrieves question statistics
+// This function retrieves question statistics from MongoDB
 
-const fs = require('fs').promises;
-const path = require('path');
+const { getAllStats } = require('./mongodb');
 
 exports.handler = async (event, context) => {
     console.log('get-stats function called');
@@ -34,68 +33,43 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // 統計ファイルのパス（Netlify環境に適応）
-        let statsFilePath;
-        let stats = {};
+        // MongoDBから全統計データを取得
+        const statsArray = await getAllStats();
+        console.log('Stats loaded from MongoDB:', statsArray.length, 'questions');
         
-        try {
-            // まず相対パスで試行
-            statsFilePath = path.join(process.cwd(), 'data', 'question-stats.json');
-            console.log('Trying stats file path:', statsFilePath);
-            
-            // ファイルの存在確認
-            await fs.access(statsFilePath);
-            console.log('Stats file found at:', statsFilePath);
-            
-            // 統計データを読み込み
-            try {
-                const statsData = await fs.readFile(statsFilePath, 'utf8');
-                stats = JSON.parse(statsData);
-                console.log('Stats loaded from file:', Object.keys(stats).length, 'questions');
-            } catch (readError) {
-                console.log('Stats file not found or invalid, returning empty stats:', readError.message);
-                stats = {};
-            }
-            
-        } catch (accessError) {
-            console.log('Primary path not accessible, trying alternative paths');
-            
-            // 代替パスを試行
-            const alternativePaths = [
-                path.join(__dirname, '..', '..', 'data', 'question-stats.json'),
-                path.join(__dirname, '..', 'data', 'question-stats.json'),
-                path.join(process.cwd(), '..', 'data', 'question-stats.json')
-            ];
-            
-            for (const altPath of alternativePaths) {
-                try {
-                    console.log('Trying alternative path:', altPath);
-                    await fs.access(altPath);
-                    statsFilePath = altPath;
-                    console.log('Stats file found at alternative path:', statsFilePath);
-                    
-                    // 統計データを読み込み
-                    try {
-                        const statsData = await fs.readFile(statsFilePath, 'utf8');
-                        stats = JSON.parse(statsData);
-                        console.log('Stats loaded from file:', Object.keys(stats).length, 'questions');
-                    } catch (readError) {
-                        console.log('Stats file not found or invalid, returning empty stats:', readError.message);
-                        stats = {};
-                    }
-                    break;
-                } catch (err) {
-                    console.log('Path not accessible:', altPath);
-                }
-            }
-            
-            if (!statsFilePath) {
-                console.log('Could not find stats file in any location - returning empty stats');
-                stats = {};
-            }
-        }
+        // 統計データをquestionKeyをキーとしたオブジェクトに変換
+        const stats = {};
+        let totalAttempts = 0;
+        let totalCorrectAnswers = 0;
         
-        console.log('Final stats data:', stats);
+        statsArray.forEach(stat => {
+            stats[stat.questionKey] = {
+                questionId: stat.questionId,
+                level: stat.level,
+                totalAttempts: stat.totalAttempts,
+                correctAnswers: stat.correctAnswers,
+                accuracy: stat.totalAttempts > 0 ? 
+                    (stat.correctAnswers / stat.totalAttempts * 100).toFixed(2) + '%' : '0%',
+                lastUpdated: stat.lastUpdated
+            };
+            
+            totalAttempts += stat.totalAttempts;
+            totalCorrectAnswers += stat.correctAnswers;
+        });
+        
+        // 全体統計を計算
+        const overallStats = {
+            totalQuestions: statsArray.length,
+            totalAttempts: totalAttempts,
+            totalCorrectAnswers: totalCorrectAnswers,
+            overallAccuracy: totalAttempts > 0 ? 
+                (totalCorrectAnswers / totalAttempts * 100).toFixed(2) + '%' : '0%'
+        };
+        
+        console.log('Processed stats data:', {
+            questionCount: Object.keys(stats).length,
+            overallStats: overallStats
+        });
         
         return {
             statusCode: 200,
@@ -106,13 +80,33 @@ exports.handler = async (event, context) => {
             },
             body: JSON.stringify({ 
                 success: true,
-                stats: stats
+                stats: stats,
+                overallStats: overallStats,
+                message: 'Statistics retrieved successfully from MongoDB'
             })
         };
 
     } catch (error) {
         console.error('Error getting stats:', error);
         console.error('Error stack:', error.stack);
+        
+        // MongoDB接続エラーの場合の特別な処理
+        if (error.message.includes('MONGODB_URI') || error.message.includes('MongoDB')) {
+            return {
+                statusCode: 503,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
+                body: JSON.stringify({ 
+                    error: 'Database connection error',
+                    message: 'Unable to connect to MongoDB. Please check your database configuration.',
+                    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+                })
+            };
+        }
+        
         return {
             statusCode: 500,
             headers: {

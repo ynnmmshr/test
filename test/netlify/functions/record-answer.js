@@ -1,8 +1,7 @@
 // Netlify Function: record-answer
-// This function records user answers
+// This function records user answers using MongoDB
 
-const fs = require('fs').promises;
-const path = require('path');
+const { getStats, updateStats } = require('./mongodb');
 
 exports.handler = async (event, context) => {
     console.log('record-answer function called');
@@ -69,102 +68,66 @@ exports.handler = async (event, context) => {
             };
         }
         
-        // 統計ファイルのパス（Netlify環境に適応）
-        let statsFilePath;
-        let stats = {};
-        
-        try {
-            // まず相対パスで試行
-            statsFilePath = path.join(process.cwd(), 'data', 'question-stats.json');
-            console.log('Trying stats file path:', statsFilePath);
-            
-            // ファイルの存在確認
-            await fs.access(statsFilePath);
-            console.log('Stats file found at:', statsFilePath);
-            
-            // 既存の統計データを読み込み
-            try {
-                const statsData = await fs.readFile(statsFilePath, 'utf8');
-                stats = JSON.parse(statsData);
-                console.log('Existing stats loaded:', Object.keys(stats).length, 'questions');
-            } catch (readError) {
-                console.log('Stats file not found or invalid, creating new one:', readError.message);
-                // ファイルが存在しない場合は空のオブジェクトから開始
-            }
-            
-        } catch (accessError) {
-            console.log('Primary path not accessible, trying alternative paths');
-            
-            // 代替パスを試行
-            const alternativePaths = [
-                path.join(__dirname, '..', '..', 'data', 'question-stats.json'),
-                path.join(__dirname, '..', 'data', 'question-stats.json'),
-                path.join(process.cwd(), '..', 'data', 'question-stats.json')
-            ];
-            
-            for (const altPath of alternativePaths) {
-                try {
-                    console.log('Trying alternative path:', altPath);
-                    await fs.access(altPath);
-                    statsFilePath = altPath;
-                    console.log('Stats file found at alternative path:', statsFilePath);
-                    
-                    // 既存の統計データを読み込み
-                    try {
-                        const statsData = await fs.readFile(statsFilePath, 'utf8');
-                        stats = JSON.parse(statsData);
-                        console.log('Existing stats loaded:', Object.keys(stats).length, 'questions');
-                    } catch (readError) {
-                        console.log('Stats file not found or invalid, creating new one:', readError.message);
-                    }
-                    break;
-                } catch (err) {
-                    console.log('Path not accessible:', altPath);
-                }
-            }
-            
-            if (!statsFilePath) {
-                console.log('Could not find stats file in any location - proceeding with empty stats');
-                // ファイルが見つからない場合は空のオブジェクトから開始
-            }
-        }
-        
         // 問題のキー
         const questionKey = `${level}-${questionId}`;
         console.log('Question key:', questionKey);
         
+        // MongoDBから既存の統計データを取得
+        let existingStats = await getStats(questionKey);
+        console.log('Existing stats from MongoDB:', existingStats);
+        
         // 統計データを更新
-        if (!stats[questionKey]) {
-            stats[questionKey] = {
+        let statsData;
+        if (!existingStats) {
+            // 新しい問題の統計データを作成
+            statsData = {
+                questionKey,
                 questionId: parseInt(questionId),
                 level: parseInt(level),
-                totalAttempts: 0,
-                correctAnswers: 0
+                totalAttempts: 1,
+                correctAnswers: isCorrect ? 1 : 0,
+                lastUpdated: new Date(),
+                userAnswers: [{
+                    answer: userAnswer,
+                    isCorrect: isCorrect,
+                    timestamp: new Date()
+                }]
             };
             console.log('Created new stats entry for question:', questionKey);
+        } else {
+            // 既存の統計データを更新
+            const oldTotalAttempts = existingStats.totalAttempts;
+            const oldCorrectAnswers = existingStats.correctAnswers;
+            
+            statsData = {
+                ...existingStats,
+                totalAttempts: oldTotalAttempts + 1,
+                correctAnswers: oldCorrectAnswers + (isCorrect ? 1 : 0),
+                lastUpdated: new Date(),
+                userAnswers: [
+                    ...(existingStats.userAnswers || []),
+                    {
+                        answer: userAnswer,
+                        isCorrect: isCorrect,
+                        timestamp: new Date()
+                    }
+                ]
+            };
+            
+            console.log('Stats updated:', {
+                questionKey,
+                oldTotalAttempts,
+                oldCorrectAnswers,
+                newTotalAttempts: statsData.totalAttempts,
+                newCorrectAnswers: statsData.correctAnswers
+            });
         }
         
-        const oldTotalAttempts = stats[questionKey].totalAttempts;
-        const oldCorrectAnswers = stats[questionKey].correctAnswers;
+        // MongoDBに統計データを保存
+        const updateResult = await updateStats(questionKey, statsData);
+        console.log('MongoDB update result:', updateResult);
         
-        stats[questionKey].totalAttempts++;
-        if (isCorrect) {
-            stats[questionKey].correctAnswers++;
-        }
-        
-        console.log('Stats updated:', {
-            questionKey,
-            oldTotalAttempts,
-            oldCorrectAnswers,
-            newTotalAttempts: stats[questionKey].totalAttempts,
-            newCorrectAnswers: stats[questionKey].correctAnswers
-        });
-        
-        // Netlify環境ではファイル書き込みができないため、読み取り専用として扱う
-        // 実際の統計更新はクライアント側のローカルストレージで行う
-        console.log('Note: File write skipped in Netlify environment - stats updated in memory only');
-        
-        console.log(`Answer recorded for question ${questionKey}:`, stats[questionKey]);
+        console.log(`Answer recorded for question ${questionKey}:`, statsData);
 
         return {
             statusCode: 200,
@@ -175,15 +138,46 @@ exports.handler = async (event, context) => {
             },
             body: JSON.stringify({ 
                 success: true,
-                data: stats[questionKey],
-                saved: false, // Netlify環境ではファイルに保存できない
-                message: 'Answer recorded (local storage fallback recommended)'
+                data: {
+                    questionKey: statsData.questionKey,
+                    questionId: statsData.questionId,
+                    level: statsData.level,
+                    totalAttempts: statsData.totalAttempts,
+                    correctAnswers: statsData.correctAnswers,
+                    accuracy: statsData.totalAttempts > 0 ? 
+                        (statsData.correctAnswers / statsData.totalAttempts * 100).toFixed(2) + '%' : '0%'
+                },
+                saved: true,
+                message: 'Answer recorded successfully in MongoDB',
+                mongodbResult: {
+                    matchedCount: updateResult.matchedCount,
+                    modifiedCount: updateResult.modifiedCount,
+                    upsertedCount: updateResult.upsertedCount
+                }
             })
         };
 
     } catch (error) {
         console.error('Error recording answer:', error);
         console.error('Error stack:', error.stack);
+        
+        // MongoDB接続エラーの場合の特別な処理
+        if (error.message.includes('MONGODB_URI') || error.message.includes('MongoDB')) {
+            return {
+                statusCode: 503,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                },
+                body: JSON.stringify({ 
+                    error: 'Database connection error',
+                    message: 'Unable to connect to MongoDB. Please check your database configuration.',
+                    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+                })
+            };
+        }
+        
         return {
             statusCode: 500,
             headers: {
