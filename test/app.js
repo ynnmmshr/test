@@ -16,6 +16,8 @@ class ChemistryQuizApp {
         this.selectedOption = null;
         this.questionStats = {};
         this.serverStatsLoaded = false;
+        this.connectionErrorNotified = false;
+        this.networkErrorNotified = false;
         this.bindEvents();
         this.loadLocalProgress();
         this.loadQuestionStats();
@@ -74,9 +76,20 @@ class ChemistryQuizApp {
                 // 503エラー（データベース接続エラー）の場合
                 if (response.status === 503) {
                     console.error('Database connection error:', errorData);
-                    alert('データベース接続エラーが発生しました。\n\n' + 
-                          (errorData.message || 'MongoDB接続を確認してください。') + 
-                          '\n\n詳細: ' + (errorData.details?.suggestion || '環境変数の設定を確認してください。'));
+                    console.log('Falling back to local storage due to database connection error');
+                    
+                    // データベース接続エラーの場合はローカルストレージを使用
+                    this.loadLocalStats();
+                    this.serverStatsLoaded = false;
+                    
+                    // ユーザーに通知（一度だけ）
+                    if (!this.connectionErrorNotified) {
+                        alert('データベース接続エラーが発生しました。\n\n' + 
+                              'ローカルストレージの統計データを使用します。\n\n' +
+                              '詳細: ' + (errorData.details?.suggestion || '環境変数の設定を確認してください。'));
+                        this.connectionErrorNotified = true;
+                    }
+                    return;
                 }
             }
         } catch (error) {
@@ -87,11 +100,21 @@ class ChemistryQuizApp {
                 type: error.type
             });
             
+            // ネットワークエラーの場合もローカルストレージを使用
+            console.log('Falling back to local storage due to network error');
+            this.loadLocalStats();
+            this.serverStatsLoaded = false;
+            
             // ネットワークエラーの場合
             if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                alert('ネットワークエラーが発生しました。\n\n' +
-                      'インターネット接続を確認し、ページを再読み込みしてください。');
+                if (!this.networkErrorNotified) {
+                    alert('ネットワークエラーが発生しました。\n\n' +
+                          'ローカルストレージの統計データを使用します。\n\n' +
+                          'インターネット接続を確認し、ページを再読み込みしてください。');
+                    this.networkErrorNotified = true;
+                }
             }
+            return;
         }
         
         // サーバーから取得できない場合のみ空のオブジェクトを使用
@@ -147,7 +170,9 @@ class ChemistryQuizApp {
             // レスポンスのステータスコードをチェック
             if (!response.ok) {
                 console.log(`Server responded with status: ${response.status}`);
-                console.log('Server error - not updating local stats');
+                console.log('Server error - falling back to local storage');
+                // サーバーエラーの場合はローカルストレージにフォールバック
+                this.updateLocalStats(key, questionId, level, isCorrect);
                 return;
             }
             
@@ -155,7 +180,9 @@ class ChemistryQuizApp {
             const responseText = await response.text();
             if (!responseText) {
                 console.log('Empty response from server');
-                console.log('Server error - not updating local stats');
+                console.log('Server error - falling back to local storage');
+                // サーバーエラーの場合はローカルストレージにフォールバック
+                this.updateLocalStats(key, questionId, level, isCorrect);
                 return;
             }
             
@@ -168,12 +195,38 @@ class ChemistryQuizApp {
                 console.log('Updated local display with server data, not saving to localStorage');
             } else {
                 console.log('Server returned error');
-                console.log('Server error - not updating local stats');
+                console.log('Server error - falling back to local storage');
+                // サーバーエラーの場合はローカルストレージにフォールバック
+                this.updateLocalStats(key, questionId, level, isCorrect);
             }
         } catch (error) {
             console.log('Failed to record answer to server:', error);
-            console.log('Server error - not updating local stats');
+            console.log('Server error - falling back to local storage');
+            // サーバーエラーの場合はローカルストレージにフォールバック
+            this.updateLocalStats(key, questionId, level, isCorrect);
         }
+    }
+
+    // ローカル統計を更新（フォールバック用）
+    updateLocalStats(key, questionId, level, isCorrect) {
+        if (!this.questionStats[key]) {
+            this.questionStats[key] = {
+                questionId: parseInt(questionId),
+                level: parseInt(level),
+                totalAttempts: 0,
+                correctAnswers: 0
+            };
+        }
+        
+        // 統計を更新
+        this.questionStats[key].totalAttempts++;
+        if (isCorrect) {
+            this.questionStats[key].correctAnswers++;
+        }
+        
+        // ローカルストレージに保存
+        this.saveLocalStats();
+        console.log('Answer recorded locally (fallback):', this.questionStats[key]);
     }
 
     // 問題の正答率を取得

@@ -4,9 +4,10 @@
   "description": "Netlify Functions for Chemistry Quiz App",
   "main": "index.js",
   "dependencies": {
+    "dotenv": "^17.0.0",
     "mongodb": "^6.3.0"
   },
   "engines": {
     "node": ">=18.0.0"
   }
-} 
+}

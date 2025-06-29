@@ -2,27 +2,30 @@
   functions = "netlify/functions"
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
-[functions]
-  node_bundler = "esbuild"
-  included_files = ["data/**"]
-
-[functions."record-answer"]
-  node_bundler = "esbuild"
-
-[functions."get-stats"]
-  node_bundler = "esbuild"
+[dev]
+  functions = "netlify/functions"
+  publish = "."
 
 # Add environment variables for debugging
-[context.production.environment]
-  NODE_ENV = "production"
-
-[context.deploy-preview.environment]
+[context.dev.environment]
+  MONGODB_URI = "mongodb+srv://chemistry-quiz-user:u2Mf1TWJ9UD5rlTU@cluster.mongodb.net/chemistry-quiz?retryWrites=true&w=majority"
+  MONGODB_DB_NAME = "chemistry-quiz"
   NODE_ENV = "development"
 
-[context.branch-deploy.environment]
-  NODE_ENV = "development" 
+[context.deploy-preview.environment]
+  MONGODB_URI = "mongodb+srv://chemistry-quiz-user:u2Mf1TWJ9UD5rlTU@cluster.mongodb.net/chemistry-quiz?retryWrites=true&w=majority"
+  MONGODB_DB_NAME = "chemistry-quiz"
+  NODE_ENV = "development"
+
+[context.production.environment]
+  MONGODB_URI = "mongodb+srv://chemistry-quiz-user:u2Mf1TWJ9UD5rlTU@cluster.mongodb.net/chemistry-quiz?retryWrites=true&w=majority"
+  MONGODB_DB_NAME = "chemistry-quiz"
+  NODE_ENV = "production" 
