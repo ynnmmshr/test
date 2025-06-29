@@ -210,29 +210,19 @@ const mockStats = {
         questionKey: "1-1",
         questionId: 1,
         level: 1,
-        totalAttempts: 5,
-        correctAnswers: 3,
+        totalAttempts: 0,
+        correctAnswers: 0,
         lastUpdated: new Date(),
-        userAnswers: [
-            { answer: "H2O", isCorrect: true, timestamp: new Date() },
-            { answer: "CO2", isCorrect: false, timestamp: new Date() },
-            { answer: "H2O", isCorrect: true, timestamp: new Date() },
-            { answer: "H2O", isCorrect: true, timestamp: new Date() },
-            { answer: "NaCl", isCorrect: false, timestamp: new Date() }
-        ]
+        userAnswers: []
     },
     "1-2": {
         questionKey: "1-2",
         questionId: 2,
         level: 1,
-        totalAttempts: 3,
-        correctAnswers: 2,
+        totalAttempts: 0,
+        correctAnswers: 0,
         lastUpdated: new Date(),
-        userAnswers: [
-            { answer: "NaCl", isCorrect: true, timestamp: new Date() },
-            { answer: "H2O", isCorrect: false, timestamp: new Date() },
-            { answer: "NaCl", isCorrect: true, timestamp: new Date() }
-        ]
+        userAnswers: []
     }
 };
 
@@ -246,7 +236,11 @@ function getMockStats(questionKey = null) {
 
 // モックデータを更新
 function updateMockStats(questionKey, statsData) {
-    mockStats[questionKey] = statsData;
+    // 既存のデータを完全に置き換える（重複更新を防ぐ）
+    mockStats[questionKey] = {
+        ...statsData,
+        lastUpdated: new Date()
+    };
     console.log('Mock stats updated for:', questionKey, statsData);
     return { matchedCount: 1, modifiedCount: 1, upsertedCount: 0 };
 }

@@ -458,7 +458,7 @@ class ChemistryQuizApp {
         document.getElementById('current-question').textContent = blockQuestionNumber;
         document.getElementById('question-text').textContent = q.question;
         
-        // サーバーから最新の統計データを取得
+        // サーバーから最新の統計データを取得（問題表示時の統計）
         try {
             const response = await fetch('/.netlify/functions/get-stats');
             if (response.ok) {
@@ -466,8 +466,10 @@ class ChemistryQuizApp {
                 if (responseText) {
                     const result = JSON.parse(responseText);
                     if (result.success && result.stats) {
+                        // 問題表示時の統計を保存（解答前の統計）
+                        this.questionStatsBeforeAnswer = { ...result.stats };
                         this.questionStats = result.stats;
-                        console.log('Updated stats from server for question display:', result.stats);
+                        console.log('Updated stats from server for question display (before answer):', result.stats);
                     }
                 }
             }
@@ -475,12 +477,12 @@ class ChemistryQuizApp {
             console.log('Failed to get latest stats for question display:', error);
         }
         
-        // 正答率を表示（全参加者統計）
+        // 正答率を表示（解答前の全参加者統計）
         const accuracy = this.getQuestionAccuracy(q.id, this.currentLevel);
         const accuracyElement = document.getElementById('question-accuracy');
         const accuracyPercentageElement = document.getElementById('accuracy-percentage');
         
-        console.log('Question accuracy debug:', {
+        console.log('Question accuracy debug (before answer):', {
             questionId: q.id,
             level: this.currentLevel,
             accuracy: accuracy,
@@ -495,7 +497,7 @@ class ChemistryQuizApp {
             
             accuracyPercentageElement.textContent = accuracy;
             accuracyElement.style.display = 'block';
-            accuracyElement.innerHTML = `全参加者統計: <span id="accuracy-percentage">${accuracy}</span>% (正解: ${correctAnswers}回 / 挑戦: ${totalAttempts}回)`;
+            accuracyElement.innerHTML = `全参加者統計（解答前）: <span id="accuracy-percentage">${accuracy}</span>% (正解: ${correctAnswers}回 / 挑戦: ${totalAttempts}回)`;
         } else {
             accuracyElement.style.display = 'none';
         }
