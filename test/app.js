@@ -55,9 +55,43 @@ class ChemistryQuizApp {
                         return;
                     }
                 }
+            } else {
+                // サーバーエラーの詳細を取得
+                const errorText = await response.text();
+                let errorData = {};
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    errorData = { message: errorText };
+                }
+                
+                console.error('Server error response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorData
+                });
+                
+                // 503エラー（データベース接続エラー）の場合
+                if (response.status === 503) {
+                    console.error('Database connection error:', errorData);
+                    alert('データベース接続エラーが発生しました。\n\n' + 
+                          (errorData.message || 'MongoDB接続を確認してください。') + 
+                          '\n\n詳細: ' + (errorData.details?.suggestion || '環境変数の設定を確認してください。'));
+                }
             }
         } catch (error) {
-            console.log('Failed to load server stats:', error);
+            console.error('Failed to load server stats:', error);
+            console.error('Network error details:', {
+                name: error.name,
+                message: error.message,
+                type: error.type
+            });
+            
+            // ネットワークエラーの場合
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                alert('ネットワークエラーが発生しました。\n\n' +
+                      'インターネット接続を確認し、ページを再読み込みしてください。');
+            }
         }
         
         // サーバーから取得できない場合のみ空のオブジェクトを使用
