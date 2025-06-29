@@ -8,7 +8,8 @@
     "build": "echo 'No build step required'"
   },
   "dependencies": {
-    "mongodb": "^6.3.0"
+    "mongodb": "^6.3.0",
+    "dotenv": "^17.0.0"
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"
