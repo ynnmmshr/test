@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netlify Functions Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #007cba;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+    </style>
+</head>
+<body>
+    <h1>Netlify Functions Debug</h1>
+    
+    <div class="test-section">
+        <h2>Get Stats Test</h2>
+        <button onclick="testGetStats()">Test Get Stats</button>
+        <div id="get-stats-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Record Answer Test</h2>
+        <button onclick="testRecordAnswer()">Test Record Answer</button>
+        <div id="record-answer-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Environment Info</h2>
+        <div id="env-info" class="result"></div>
+    </div>
+
+    <script>
+        // 環境情報を表示
+        document.getElementById('env-info').textContent = 
+            `Current URL: ${window.location.href}\n` +
+            `Origin: ${window.location.origin}\n` +
+            `Pathname: ${window.location.pathname}\n` +
+            `User Agent: ${navigator.userAgent}`;
+
+        async function testGetStats() {
+            const resultDiv = document.getElementById('get-stats-result');
+            resultDiv.textContent = 'Testing get-stats function...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('/.netlify/functions/get-stats', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const responseText = await response.text();
+                console.log('Get Stats Response:', response);
+                console.log('Get Stats Response Text:', responseText);
+                
+                if (!response.ok) {
+                    resultDiv.textContent = `Error: ${response.status} ${response.statusText}\nResponse: ${responseText}`;
+                    resultDiv.className = 'result error';
+                    return;
+                }
+                
+                const result = JSON.parse(responseText);
+                resultDiv.textContent = `Success: ${JSON.stringify(result, null, 2)}`;
+                resultDiv.className = 'result success';
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}\nStack: ${error.stack}`;
+                resultDiv.className = 'result error';
+                console.error('Get Stats Error:', error);
+            }
+        }
+        
+        async function testRecordAnswer() {
+            const resultDiv = document.getElementById('record-answer-result');
+            resultDiv.textContent = 'Testing record-answer function...';
+            resultDiv.className = 'result';
+            
+            try {
+                const testData = {
+                    questionId: 1,
+                    level: 1,
+                    isCorrect: true,
+                    userAnswer: 0
+                };
+                
+                const response = await fetch('/.netlify/functions/record-answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const responseText = await response.text();
+                console.log('Record Answer Response:', response);
+                console.log('Record Answer Response Text:', responseText);
+                
+                if (!response.ok) {
+                    resultDiv.textContent = `Error: ${response.status} ${response.statusText}\nResponse: ${responseText}`;
+                    resultDiv.className = 'result error';
+                    return;
+                }
+                
+                const result = JSON.parse(responseText);
+                resultDiv.textContent = `Success: ${JSON.stringify(result, null, 2)}`;
+                resultDiv.className = 'result success';
+                
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}\nStack: ${error.stack}`;
+                resultDiv.className = 'result error';
+                console.error('Record Answer Error:', error);
+            }
+        }
+    </script>
+</body>
+</html> 

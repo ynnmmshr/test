@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="高校化学理論化学の基礎問題100題を学習できるWebアプリケーション">
+    <meta name="keywords" content="高校化学,理論化学,問題,学習,アプリ">
+    <meta name="author" content="Chemistry Quiz App">
+    <meta property="og:title" content="高校化学 理論化学の基礎問題100題">
+    <meta property="og:description" content="高校化学理論化学の基礎問題100題を学習できるWebアプリケーション">
+    <meta property="og:type" content="website">
+    <title>高校化学 理論化学の基礎問題100題</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- レベル選択画面 -->
+        <div id="level-selection" class="level-selection">
+            <header>
+                <h1>高校化学 理論化学問題集</h1>
+                <p class="subtitle">レベルを選択してください</p>
+            </header>
+
+            <main>
+                <div class="levels-container">
+                    <div class="level-card" data-level="1">
+                        <div class="level-header">
+                            <h2>Level 1: 基礎</h2>
+                            <div class="level-badge">初級</div>
+                        </div>
+                        <div class="level-content">
+                            <p>理論化学の基本概念を学習</p>
+                            <ul>
+                                <li>原子の構造</li>
+                                <li>化学結合</li>
+                                <li>分子間力</li>
+                                <li>酸と塩基</li>
+                            </ul>
+                            <div class="level-stats">
+                                <span>100問</span>
+                                <span>基礎レベル</span>
+                            </div>
+                        </div>
+                        <button class="level-btn">開始</button>
+                    </div>
+
+                    <div class="level-card" data-level="2">
+                        <div class="level-header">
+                            <h2>Level 2: 応用</h2>
+                            <div class="level-badge">中級</div>
+                        </div>
+                        <div class="level-content">
+                            <p>計算問題と応用概念を学習</p>
+                            <ul>
+                                <li>モル計算</li>
+                                <li>濃度計算</li>
+                                <li>反応速度</li>
+                                <li>化学平衡</li>
+                            </ul>
+                            <div class="level-stats">
+                                <span>100問</span>
+                                <span>応用レベル</span>
+                            </div>
+                        </div>
+                        <button class="level-btn">開始</button>
+                    </div>
+
+                    <div class="level-card" data-level="3">
+                        <div class="level-header">
+                            <h2>Level 3: 発展</h2>
+                            <div class="level-badge">上級</div>
+                        </div>
+                        <div class="level-content">
+                            <p>大学入試レベルの総合問題</p>
+                            <ul>
+                                <li>複雑な計算</li>
+                                <li>実験データ解析</li>
+                                <li>反応機構</li>
+                                <li>総合問題</li>
+                            </ul>
+                            <div class="level-stats">
+                                <span>100問</span>
+                                <span>発展レベル</span>
+                            </div>
+                        </div>
+                        <button class="level-btn">開始</button>
+                    </div>
+                </div>
+            </main>
+
+            <footer>
+                <div class="overall-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">総問題数:</span>
+                        <span>300問</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">レベル数:</span>
+                        <span>3レベル</span>
+                    </div>
+                </div>
+                <div class="stats-actions">
+                    <button id="show-stats-btn" class="btn btn-secondary">学習統計を見る</button>
+                    <button id="reset-stats-btn" class="btn btn-secondary">統計をリセット</button>
+                </div>
+            </footer>
+        </div>
+
+        <!-- ブロック選択画面 -->
+        <div id="block-selection" class="block-selection" style="display: none;">
+            <header>
+                <div class="header-top">
+                    <button id="back-to-levels-from-blocks" class="back-btn">← レベル選択に戻る</button>
+                    <h1 id="block-selection-title">ブロック選択</h1>
+                </div>
+                <p class="subtitle">学習したいブロックを選択してください（各ブロック10問）</p>
+            </header>
+
+            <main>
+                <div id="blocks-container" class="blocks-container">
+                    <!-- ブロックカードがここに動的に生成されます -->
+                </div>
+            </main>
+        </div>
+
+        <!-- 問題画面 -->
+        <div id="quiz-screen" class="quiz-screen" style="display: none;">
+            <header>
+                <div class="header-top">
+                    <button id="back-to-blocks" class="back-btn">← ブロック選択に戻る</button>
+                    <div class="level-indicator">
+                        <span id="current-level-text">Level 1: 基礎</span>
+                    </div>
+                </div>
+                <h1>高校化学 理論化学の基礎問題100題</h1>
+                <div class="progress-info">
+                    <span id="current-question">1</span> / <span id="total-questions">100</span>
+                    <div class="progress-bar">
+                        <div id="progress-fill"></div>
+                    </div>
+                </div>
+            </header>
+
+            <main>
+                <div class="question-container">
+                    <div class="question-number">問題 <span id="question-number">1</span></div>
+                    <div class="question-text" id="question-text">
+                        問題文がここに表示されます
+                    </div>
+                    <div class="question-accuracy" id="question-accuracy" style="display: none;">
+                        正答率: <span id="accuracy-percentage">0</span>%
+                    </div>
+                    
+                    <div class="options-container" id="options-container">
+                        <!-- 選択肢がここに表示されます -->
+                    </div>
+
+                    <div class="answer-section" id="answer-section" style="display: none;">
+                        <div class="result" id="result">
+                            <!-- 正誤結果がここに表示されます -->
+                        </div>
+                        <div class="explanation" id="explanation">
+                            <!-- 解説がここに表示されます -->
+                        </div>
+                    </div>
+
+                    <div class="button-container">
+                        <button id="submit-btn" class="btn btn-primary">解答する</button>
+                        <button id="next-btn" class="btn btn-secondary" style="display: none;">次の問題</button>
+                        <button id="retry-btn" class="btn btn-secondary" style="display: none;">もう一度</button>
+                    </div>
+                </div>
+            </main>
+
+            <footer>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">正解数:</span>
+                        <span id="correct-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">正答率:</span>
+                        <span id="accuracy">0%</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <!-- 統計画面 -->
+        <div id="stats-screen" class="stats-screen" style="display: none;">
+            <header>
+                <div class="header-top">
+                    <button id="back-to-levels-from-stats" class="back-btn">← レベル選択に戻る</button>
+                    <h1>学習統計</h1>
+                </div>
+            </header>
+
+            <main>
+                <div class="stats-container">
+                    <div class="stats-overview">
+                        <h2>全体統計</h2>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <h3>総挑戦回数</h3>
+                                <p id="total-attempts">0回</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>総正解数</h3>
+                                <p id="total-correct">0回</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>全体正答率</h3>
+                                <p id="overall-accuracy">0%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="level-stats">
+                        <h2>レベル別統計</h2>
+                        <div class="level-stats-grid">
+                            <div class="level-stat-card" data-level="1">
+                                <h3>Level 1: 基礎</h3>
+                                <div class="level-stat-content">
+                                    <p>挑戦回数: <span id="level1-attempts">0回</span></p>
+                                    <p>正解数: <span id="level1-correct">0回</span></p>
+                                    <p>正答率: <span id="level1-accuracy">0%</span></p>
+                                </div>
+                            </div>
+                            <div class="level-stat-card" data-level="2">
+                                <h3>Level 2: 応用</h3>
+                                <div class="level-stat-content">
+                                    <p>挑戦回数: <span id="level2-attempts">0回</span></p>
+                                    <p>正解数: <span id="level2-correct">0回</span></p>
+                                    <p>正答率: <span id="level2-accuracy">0%</span></p>
+                                </div>
+                            </div>
+                            <div class="level-stat-card" data-level="3">
+                                <h3>Level 3: 発展</h3>
+                                <div class="level-stat-content">
+                                    <p>挑戦回数: <span id="level3-attempts">0回</span></p>
+                                    <p>正解数: <span id="level3-correct">0回</span></p>
+                                    <p>正答率: <span id="level3-accuracy">0%</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="question-stats">
+                        <h2>問題別統計</h2>
+                        <div class="level-selector">
+                            <button class="level-select-btn active" data-level="1">Level 1</button>
+                            <button class="level-select-btn" data-level="2">Level 2</button>
+                            <button class="level-select-btn" data-level="3">Level 3</button>
+                        </div>
+                        <div id="question-stats-list" class="question-stats-list">
+                            <!-- 問題別統計がここに表示されます -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js" type="module"></script>
+</body>
+</html> 
