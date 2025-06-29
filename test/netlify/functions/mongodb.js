@@ -66,8 +66,6 @@ async function getConnection() {
         console.log('URI format check:', uri.substring(0, 20) + '...');
         
         client = new MongoClient(uri, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
             serverSelectionTimeoutMS: 5000, // 5秒でタイムアウト
             connectTimeoutMS: 10000, // 10秒で接続タイムアウト
         });
